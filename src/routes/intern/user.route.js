@@ -4,11 +4,13 @@ import {
   refreshToken,
   deleteUser,
   logout,
+  updateUser,
 } from "../../controllers/user.controller.js";
 
 import { authMiddleware } from "../../middlewares/auth.middleware.js";
 import { INTERN_ROLE } from "../../middlewares/role-base.middleware.js";
 import { createRateLimiter } from "../../middlewares/rate-limiter.middleware.js";
+import { upload } from "../../middlewares/multer.middleware.js";
 
 const router = express.Router();
 
@@ -20,6 +22,7 @@ router.use([authMiddleware(), INTERN_ROLE]);
 
 router.get("/me", createRateLimiter(20, 1), getUser);
 router.post("/logout", createRateLimiter(5, 15), logout);
+router.put("/update", createRateLimiter(5, 15), upload.single("avatar"), updateUser);
 router.delete("/delete", createRateLimiter(5, 15), deleteUser);
 
 export default router;

@@ -1,7 +1,8 @@
 export const sanitizeUser = (user, role = "student") => {
   if (!user) return null;
 
-  const userObj = user.toObject();
+  // Mongoose documents have toObject(), but plain objects (from .lean()) do not.
+  const userObj = typeof user.toObject === "function" ? user.toObject() : { ...user };
 
   const { password, ...sanitizedUser } = userObj;
 

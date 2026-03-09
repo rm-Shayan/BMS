@@ -6,6 +6,9 @@ import {
   updateUser,
   logout,
   refreshToken,
+  searchUsers,
+  updateStatus,
+  dropOutStudent,
 } from "../../controllers/user.controller.js";
 import { createUser } from "../../controllers/auth.controller.js";
 
@@ -46,5 +49,9 @@ router.put(
   upload.single("avatar"), 
   updateUser
 );
+
+router.get("/search", createRateLimiter(20, 5), searchUsers);
+router.put("/status/:id", createRateLimiter(5, 5), updateStatus);
+router.put("/dropout/:id", createRateLimiter(5, 5), dropOutStudent);
 
 export default router;

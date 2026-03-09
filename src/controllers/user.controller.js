@@ -33,10 +33,8 @@ export const refreshToken = asyncHandler(async (req, res) => {
 
     if (!incomingRefreshToken) throw new ApiError(401, "Refresh token required");
 
-    // Verify token
     const decoded = await jwtVerify(incomingRefreshToken, JWT_REFRESH_SECRET);
 
-    // DB mein session check karein (User model mein ab refreshToken nahi hai)
     const session = await Session.findOne({
         user: decoded?._id,
         refreshToken: incomingRefreshToken,
@@ -114,23 +112,100 @@ export const updateUser = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, sanitized, "User updated successfully"));
 });
 
-
-// 1. Controller: Yahan sirf wohi fields mangwayein jo dono roles ke liye common hain
-export const getUsers = asyncHandler(async (req, res) => {
-  const users = await User.find()
-    .populate("bootcampId", "name status")
-    .populate({
-        path: "domain",
-        select: "name description mentorId",
-        // Sirf tab populate karein agar user student ho
-        match: { role: { $ne: "mentor" } } 
-    })
-    .lean();
-
-    const sanitizedUsers = users.map(user => sanitizeUser(user));
+export const searchUsers = asyncHandler(async (req, res) => {
+    const { query = "", page = 1, limit = 10 } = req.query;
     
+    // Unique cache key banayein jo query aur page/limit par depend kare
+    const cacheKey = `search_users_${query}_${page}_${limit}`;
+
+    // 1. Check cache
+    const cachedData = cache.get(cacheKey);
+    if (cachedData) {
+        return res.status(200).json(new ApiResponse(200, cachedData, "Search results from cache"));
+    }
+
+    // 2. Fetch from DB
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const searchFilter = {
+        $or: [
+            { name: { $regex: query, $options: "i" } },
+            { email: { $regex: query, $options: "i" } }
+        ]
+    };
+
+    const totalResults = await User.countDocuments(searchFilter);
+    const users = await User.find(searchFilter)
+        .populate("bootcampId", "name status")
+        .populate("domain", "name description")
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean();
+
+    const sanitizedUsers = users.map(user => sanitizeUser(user, user.role));
+
+    const responseData = {
+        users: sanitizedUsers,
+        pagination: {
+            totalResults,
+            currentPage: parseInt(page),
+            totalPages: Math.ceil(totalResults / parseInt(limit)),
+            limit: parseInt(limit)
+        }
+    };
+
+    // 3. Cache the results (1 hour)
+    cache.set(cacheKey, responseData, 3600);
+
+    return res.status(200).json(new ApiResponse(200, responseData, "Search results"));
+});
+
+export const getUsers = asyncHandler(async (req, res) => {
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const cacheKey = `users:all:${page}:${limit}`;
+
+    const cachedUsers = cache.get(cacheKey);
+
+    if (cachedUsers) {
+        return res.status(200).json(
+            new ApiResponse(200, cachedUsers, "Users retrieved from cache")
+        );
+    }
+
+    const totalUsers = await User.countDocuments();
+
+    const users = await User.find()
+        .populate("bootcampId", "name status")
+        .populate({
+            path: "domain",
+            select: "name description mentorId",
+            match: { role: { $ne: "mentor" } }
+        })
+        .skip(skip)
+        .limit(limit)
+        .lean();
+
+    const sanitizedUsers = users.map(user =>
+        sanitizeUser(user, req.user.role)
+    );
+
+    const responseData = {
+        users: sanitizedUsers,
+        pagination: {
+            totalUsers,
+            currentPage: page,
+            totalPages: Math.ceil(totalUsers / limit),
+            limit
+        }
+    };
+
+    cache.set(cacheKey, responseData);
+
     return res.status(200).json(
-        new ApiResponse(200, sanitizedUsers, "Users retrieved successfully")
+        new ApiResponse(200, responseData, "Users retrieved successfully")
     );
 });
 

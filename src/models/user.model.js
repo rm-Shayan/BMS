@@ -47,7 +47,7 @@ const userSchema = new Schema(
       default: "student",
     },
     domain: {
-      type:moose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: "Domain",
     },
     active:{
