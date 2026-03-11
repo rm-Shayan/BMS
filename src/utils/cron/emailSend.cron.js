@@ -2,18 +2,18 @@ import cron from "node-cron";
 import { User } from "../../models/user.model.js";
 import { sendMail } from "../../services/email.js";
 
-// Schedule: Daily at 09:00 server time (change via EMAIL_CRON_SCHEDULE env var)
-const EMAIL_CRON_SCHEDULE = process.env.EMAIL_CRON_SCHEDULE || "0 9 * * *";
+const EMAIL_CRON_SCHEDULE = process.env.EMAIL_CRON_SCHEDULE || "* * * * *";
 
-// If set, after a successful send the cron will unset the isMailSend flag entirely instead of setting it to false.
-const UNSET_IS_MAIL_SEND = process.env.UNSET_IS_MAIL_SEND === "true";
+console.log("[cron:email] initializing with schedule:", EMAIL_CRON_SCHEDULE);
 
 const sendEmailsToPendingUsers = async () => {
   try {
-    // Send email only to users who have been flagged to receive one.
-    const users = await User.find({ isMailSend: true, active: true }).lean();
+    const users = await User.find({ isMailSend: false, active: true });
+
+    console.log("[cron:email] found", users.length, "pending users");
+
     if (!users.length) {
-      console.log("[cron:email] no users flagged for email");
+      console.log("[cron:email] no pending users to email");
       return;
     }
 
@@ -23,30 +23,35 @@ const sendEmailsToPendingUsers = async () => {
           await sendMail({
             to: user.email,
             subject: "Bootcamp update",
-            message: `Hi ${user.name},<br/><br/>This is a scheduled email from the Bootcamp system.<br/><br/>Best regards,<br/>Bootcamp Team`,
+           message: `Hi ${user.name}, your account is ready. 
+                      Your temporary password is: Password123! 
+                      Please login and change it immediately.`,
           });
 
-          if (UNSET_IS_MAIL_SEND) {
-            await User.findByIdAndUpdate(user._id, { $unset: { isMailSend: "" } });
-          } else {
-            await User.findByIdAndUpdate(user._id, { isMailSend: false });
-          }
+          // Use updateOne to avoid schema casting errors on malformed fields (e.g., domain stored as string)
+          await User.updateOne({ _id: user._id }, { $set: { isMailSend: true } });
 
           return { email: user.email, status: "sent" };
         } catch (err) {
-          console.error("[cron:email] failed to send to", user.email, err);
+          console.error("[cron:email] failed to send to", user.email, err?.message || err);
           return { email: user.email, status: "failed" };
         }
       })
     );
-
     console.log("[cron:email] job finished", results);
   } catch (err) {
     console.error("[cron:email] cron job error", err);
   }
 };
 
-cron.schedule(EMAIL_CRON_SCHEDULE, () => {
-  console.log("[cron:email] running scheduled job", new Date().toISOString());
-  sendEmailsToPendingUsers();
-});
+cron.schedule(
+  EMAIL_CRON_SCHEDULE,
+  () => {
+    console.log("[cron:email] running scheduled job", new Date().toISOString());
+    sendEmailsToPendingUsers();
+  },
+  {
+    scheduled: true,
+    timezone: process.env.EMAIL_CRON_TZ || "UTC",
+  }
+);

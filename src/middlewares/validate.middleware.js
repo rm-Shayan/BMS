@@ -6,7 +6,10 @@ const validate = (schema) => async (req, res, next) => {
             body: req.body,
             query: req.query,
             params: req.params,
-        }, { abortEarly: false }); // abortEarly: false se saare errors ek sath milenge
+        }, {
+            abortEarly: false, // abortEarly: false se saare errors ek sath milenge
+            context: { file: req.file },
+        });
         
         next();
     } catch (error) {

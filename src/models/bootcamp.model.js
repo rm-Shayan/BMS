@@ -46,6 +46,13 @@ const bootcampSchema = new mongoose.Schema(
       }
     ],
 
+    students: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User"
+      }
+    ],
+
     domains: [
       {
         type: mongoose.Schema.Types.ObjectId,

@@ -4,6 +4,8 @@ import jwt from "jsonwebtoken";
 import validator from "validator";
 import { Schema } from "mongoose";
 
+import { Domain } from "./domain.model.js";
+
 import {
   JWT_ACCESS_SECRET,
   JWT_ACCESS_EXPIRY,
@@ -50,11 +52,11 @@ const userSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: "Domain",
     },
-    active:{
+    active: {
       type: Boolean,
       default: true,
     },
-    dropout:{
+    dropout: {
       type: Boolean,
       default: false,
     },
@@ -66,9 +68,13 @@ const userSchema = new Schema(
       url: { type: String, default: "" },
       public_id: { type: String, default: "" },
     },
-    isMailSend:{
-        type: Boolean,
-       default:false,
+    isMailSend: {
+      type: Boolean,
+      default: false,
+    },
+    firstLogin: {
+      type: Boolean,
+      default: true,
     }
   },
   {
@@ -77,13 +83,27 @@ const userSchema = new Schema(
   }
 );
 
+// Normalize domain: allow passing domain name as a string
+userSchema.pre("validate", async function (next) {
+  if (this.isModified("domain") && typeof this.domain === "string" && !mongoose.Types.ObjectId.isValid(this.domain)) {
+    const domainDoc = await Domain.findOne({ name: this.domain.trim() });
+
+    if (!domainDoc) {
+      return new Error("Invalid domain: Domain with this name does not exist");
+    }
+
+    this.domain = domainDoc._id;
+  }
+  return
+});
+
 // Password Hashing (Pre-save hook)
 userSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return ;
+  if (!this.isModified("password")) return;
 
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
- return
+  return
 });
 
 // Instance Method: Compare Password
@@ -98,6 +118,8 @@ userSchema.methods.generateAccessToken = function () {
       _id: this._id,
       email: this.email,
       role: this.role,
+      bootcampId: this.bootcampId,
+      domain: this.domain,
     },
     JWT_ACCESS_SECRET,
     {
@@ -111,6 +133,8 @@ userSchema.methods.generateRefreshToken = function () {
       _id: this._id,
       email: this.email,
       role: this.role,
+      bootcampId: this.bootcampId,
+      domain: this.domain,
     },
     JWT_REFRESH_SECRET,
     {

@@ -27,11 +27,17 @@ const assignmentSchema = new mongoose.Schema(
       index: true
     },
 
-    attachments: [
-      {
-        type: String
-      }
-    ],
+   // Agar attachments ek array hai objects ki, toh aise define karo:
+attachments: [
+  {
+    url: {
+      type: String},
+      
+    publicId: {
+      type: String,
+    }
+  }
+],
 
     bootcampId: {
       type: mongoose.Schema.Types.ObjectId,

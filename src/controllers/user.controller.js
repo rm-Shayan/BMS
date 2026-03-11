@@ -104,7 +104,7 @@ export const updateUser = asyncHandler(async (req, res) => {
     }
 
     const updatedUser = await User.findByIdAndUpdate(userId, updates, { new: true });
-    
+
     const sanitized = sanitizeUser(updatedUser);
     cache.del(`user:${userId}`);
     cache.set(`user:${userId}`, sanitized, 3600);
@@ -114,7 +114,7 @@ export const updateUser = asyncHandler(async (req, res) => {
 
 export const searchUsers = asyncHandler(async (req, res) => {
     const { query = "", page = 1, limit = 10 } = req.query;
-    
+
     // Unique cache key banayein jo query aur page/limit par depend kare
     const cacheKey = `search_users_${query}_${page}_${limit}`;
 
@@ -231,21 +231,40 @@ export const deleteUser = asyncHandler(async (req, res) => {
 
 export const updateStatus = asyncHandler(async (req, res) => {
     const userId = req.params?.id;
-    const { status } = req.body;
+    const { active } = req.body;
     const user = await User.findById(userId);
     if (!user) throw new ApiError(404, "User not found");
-    user.status = status;
+
+    if (active !== undefined) user.active = active;
     await user.save();
+
     cache.del(`user:${userId}`);
-    return res.status(200).json(new ApiResponse(200, null, "User status updated successfully"));
+    return res.status(200).json(new ApiResponse(200, null, `User ${active ? "activated" : "deactivated"} successfully`));
 });
 
 export const dropOutStudent = asyncHandler(async (req, res) => {
     const userId = req.params?.id;
     const user = await User.findById(userId);
     if (!user) throw new ApiError(404, "User not found");
-    user.isDroppedOut = true;   
+
+    user.dropout = true;
     await user.save();
+
     cache.del(`user:${userId}`);
     return res.status(200).json(new ApiResponse(200, null, "Student marked as dropped out"));
+});
+
+export const blockUser = asyncHandler(async (req, res) => {
+    const userId = req.params?.id;
+    const user = await User.findById(userId);
+    if (!user) throw new ApiError(404, "User not found");
+
+    user.active = false;
+    await user.save();
+
+    cache.del(`user:${userId}`);
+    // Clear sessions if blocked
+    await Session.deleteMany({ user: userId });
+
+    return res.status(200).json(new ApiResponse(200, null, "User blocked successfully"));
 });

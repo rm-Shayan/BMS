@@ -17,15 +17,6 @@ const sessionSchema = new Schema(
       type: Boolean, 
       default: true 
     },
-    // Meta fields from user model
-    firstLogin: {
-      type: Boolean,
-      default: false,
-    },
-    emailSent: {
-      type: Boolean,
-      default: false,
-    },
     expiresAt: { 
       type: Date, 
       required: true 

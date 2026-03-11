@@ -30,7 +30,6 @@ const announcementSchema = new mongoose.Schema(
     bootcampId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Bootcamp",
-      required: true,
       index: true
     }
   },
