@@ -35,7 +35,8 @@ app.use(morgan('dev'));
 app.use(compression());
 
 const allowedOrigins = [
-  "http://localhost:5173"
+  "http://localhost:5173",
+  "https://bootcamp-backened-fqyt3udkv-areesharao9-8007s-projects.vercel.app"
 ];
 
 app.use(cors({
