@@ -46,8 +46,12 @@ export const sendEmailsToPendingUsers = async () => {
   }
 };
 
-// Only schedule node-cron if not on Vercel
-if (process.env.NODE_ENV !== "production") {
+export const startEmailCron = () => {
+  if (process.env.NODE_ENV === "production") {
+    console.log("[cron:email] skipping scheduler in production");
+    return;
+  }
+
   cron.schedule(
     EMAIL_CRON_SCHEDULE,
     () => {
@@ -59,4 +63,4 @@ if (process.env.NODE_ENV !== "production") {
       timezone: process.env.EMAIL_CRON_TZ || "UTC",
     }
   );
-}
+};

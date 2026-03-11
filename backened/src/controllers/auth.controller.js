@@ -9,12 +9,14 @@ import XLSX from "xlsx";
 import fs from "fs";
 import { sendMail } from "../services/email.js";
 import { sanitizeUser } from "../utils/sanitizeUser.js";
+import { sendEmailsToPendingUsers } from "../utils/cron/emailSend.cron.js";
 import otpGenerator from "otp-generator";
 import { safeDeleteFile } from "../utils/safeDelete.js";
 import { Session } from "../models/session.model.js";
 import crypto from "crypto";
 import { Bootcamp } from "../models/bootcamp.model.js";
 import cache from "../config/cache.js";
+
 
 export const createUser = asyncHandler(async (req, res) => {
   let createdUsers = [];
@@ -136,6 +138,15 @@ export const createUser = asyncHandler(async (req, res) => {
     await Bootcamp.findByIdAndUpdate(bootcampId, {
       $addToSet: { students: user._id },
     });
+  }
+
+  // Only send email immediately when running in Vercel (production)
+  if (process.env.VERCEL) {
+    try {
+      await sendEmailsToPendingUsers();
+    } catch (err) {
+      console.error("[createUser] sendEmailsToPendingUsers failed", err?.message || err);
+    }
   }
 
   return res
