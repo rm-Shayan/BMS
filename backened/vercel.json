@@ -19,7 +19,7 @@
   "crons": [
     {
       "path": "/api/v1/cron/send-emails",
-      "schedule": "0 0 * * *"
+      "schedule": "*/5 * * * *"
     }
   ]
 }

@@ -165,7 +165,13 @@ export const getUsers = asyncHandler(async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const cacheKey = `users:all:${page}:${limit}`;
+    const { bootcampId, role, domain } = req.query;
+    const filter = {};
+    if (bootcampId) filter.bootcampId = bootcampId;
+    if (role) filter.role = role;
+    if (domain) filter.domain = domain;
+
+    const cacheKey = `users:all:${page}:${limit}:${JSON.stringify(filter)}`;
 
     const cachedUsers = cache.get(cacheKey);
 
@@ -175,21 +181,20 @@ export const getUsers = asyncHandler(async (req, res) => {
         );
     }
 
-    const totalUsers = await User.countDocuments();
+    const totalUsers = await User.countDocuments(filter);
 
-    const users = await User.find()
+    const users = await User.find(filter)
         .populate("bootcampId", "name status")
         .populate({
             path: "domain",
             select: "name description mentorId",
-            match: { role: { $ne: "mentor" } }
         })
         .skip(skip)
         .limit(limit)
         .lean();
 
     const sanitizedUsers = users.map(user =>
-        sanitizeUser(user, req.user.role)
+        sanitizeUser(user, req.user?.role)
     );
 
     const responseData = {
@@ -202,7 +207,7 @@ export const getUsers = asyncHandler(async (req, res) => {
         }
     };
 
-    cache.set(cacheKey, responseData);
+    cache.set(cacheKey, responseData, 3600);
 
     return res.status(200).json(
         new ApiResponse(200, responseData, "Users retrieved successfully")

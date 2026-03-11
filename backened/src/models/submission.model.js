@@ -32,6 +32,15 @@ const submissionSchema = new mongoose.Schema(
       index: true
     },
 
+    viewedAt: {
+      type: Date
+    },
+
+    viewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User"
+    },
+
     feedback: {
       type: String
     },

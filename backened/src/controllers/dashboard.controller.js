@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -240,7 +241,7 @@ export const getStudentAssignmentById = asyncHandler(async (req, res) => {
 export const getBootcampDashboardStats = asyncHandler(async (req, res) => {
   const bootcampId = req.params.id;
   const stats = await getCached(`bootcamp:stats:${bootcampId}`, CACHE_TTL, async () => {
-    const [totalStudents, totalMentors, totalDomains, totalAssignments, submissionStats] = await Promise.all([
+    const [totalStudents, totalMentors, totalDomains, totalAssignments, submissionStats, domainDistribution] = await Promise.all([
       User.countDocuments({ role: "student", bootcampId }),
       User.countDocuments({ role: "mentor", bootcampId }),
       Domain.countDocuments({ bootcampId }),
@@ -248,13 +249,32 @@ export const getBootcampDashboardStats = asyncHandler(async (req, res) => {
       Submission.aggregate([
         { $match: { assignmentId: { $in: await Assignment.find({ bootcampId }).distinct("_id") } } },
         { $group: { _id: "$status", count: { $sum: 1 } } }
+      ]),
+      User.aggregate([
+        { $match: { role: "student", bootcampId: new mongoose.Types.ObjectId(bootcampId) } },
+        { $group: { _id: "$domain", count: { $sum: 1 } } },
+        {
+          $lookup: {
+            from: "domains",
+            localField: "_id",
+            foreignField: "_id",
+            as: "domainInfo"
+          }
+        },
+        { $unwind: { path: "$domainInfo", preserveNullAndEmptyArrays: true } },
+        {
+          $project: {
+            name: { $ifNull: ["$domainInfo.name", "Unassigned"] },
+            value: "$count"
+          }
+        }
       ])
     ]);
 
     const submissions = { pending: 0, reviewed: 0, accepted: 0, rejected: 0 };
     submissionStats.forEach(s => submissions[s._id] = s.count);
 
-    return { totalStudents, totalMentors, totalDomains, totalAssignments, submissions };
+    return { totalStudents, totalMentors, totalDomains, totalAssignments, submissions, domainDistribution };
   });
 
   return res.status(200).json(new ApiResponse(200, stats, "Bootcamp dashboard stats retrieved successfully"));

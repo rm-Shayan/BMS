@@ -56,8 +56,8 @@ This document provides details for all available API endpoints in the Bootcamp B
 - **GET** `/student/bootcamp/dashboard` - Student dashboard with progress
 - **POST** `/student/bootcamp/daily-progress/add` - Add daily progress update
 - **GET** `/student/bootcamp/daily-progress` - Get student's daily progress logs
-- **POST** `/student/bootcamp/submissions` - Submit an assignment
-- **GET** `/student/bootcamp/submissions` - Get student's submissions
+- **POST** `/student/bootcamp/submissions/submit` - Submit an assignment
+- **GET** `/student/bootcamp/submissions/my-submissions` - Get student's submissions (paginated)
 
 ---
 
@@ -69,7 +69,9 @@ This document provides details for all available API endpoints in the Bootcamp B
 - **GET** `/mentor/bootcamp/domains` - View bootcamp domains
 - **GET** `/mentor/bootcamp/assignments` - View/Create assignments for bootcamp
 - **POST** `/mentor/bootcamp/assignments/create-assignment` - Create new assignment
-- **GET** `/mentor/bootcamp/submissions` - View student submissions for grading
+- **GET** `/mentor/bootcamp/submissions/all` - View all student submissions (paginated; query: `page`, `limit`, optional `status`, `studentId`)
+- **GET** `/mentor/bootcamp/submissions/all/:assignmentId` - View submissions for a given assignment
+- **PATCH** `/mentor/bootcamp/submissions/review/:id` - Review a submission (`status`: `accepted`|`rejected`|`reviewed`, optional `feedback`, `score`)
 
 ---
 
